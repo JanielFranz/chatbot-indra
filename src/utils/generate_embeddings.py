@@ -1,38 +1,29 @@
 from typing import List, Dict, Any, Tuple, Optional
 import numpy as np
+import logging
 from sentence_transformers import SentenceTransformer
 
 class EmbeddingsGenerator:
-
     def __init__(self, embedding_model: str = "all-MiniLM-L6-v2"):
         self.embedding_model_name = embedding_model
         self.embedding_model = SentenceTransformer(embedding_model)
 
-
-    def generate_embeddings(self, text_chunks: List[str], ) -> np.ndarray:
-        """
-        Genera embeddings para los chunks de texto.
-
-        Args:
-            text_chunks (List[str]): Lista de chunks de texto
-
-        Returns:
-            np.ndarray: Array de embeddings (n_chunks, embedding_dim)
-        """
-        self.logger.info(f"Generando embeddings para {len(text_chunks)} chunks...")
-
-        # Filtrar chunks vacíos
-        valid_chunks = [chunk for chunk in text_chunks if chunk.strip()]
-
-        if not valid_chunks:
+    def generate_embeddings(self, texts: List[str]) -> np.ndarray:
+        """Genera embeddings para una lista de textos."""
+        if not texts:
             return np.array([])
 
-        # Generar embeddings
-        embeddings = self.embedding_model.encode(
-            valid_chunks,
-            convert_to_numpy=True,
-            show_progress_bar=True
-        )
-
-        self.logger.info(f"Embeddings generados: {embeddings.shape}")
+        embeddings = self.embedding_model.encode(texts, convert_to_numpy=True)
         return embeddings
+
+    def get_embedding_dimension(self) -> int:
+        """Retorna la dimensión de los embeddings."""
+        return self.embedding_model.get_sentence_embedding_dimension()
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Retorna estadísticas del generador de embeddings."""
+        return {
+            "model_name": self.embedding_model_name,
+            "embedding_dimension": self.get_embedding_dimension(),
+            "device": str(self.embedding_model.device)
+        }
