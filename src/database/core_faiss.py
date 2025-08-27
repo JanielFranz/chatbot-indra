@@ -27,10 +27,10 @@ class FAISSVectorStore:
         self.id_to_index = {}  # Mapeo de ID personalizado a índice FAISS
         self.next_id = 0
 
-        self._initialize_index()
-
-        # Configurar logging
+        # Configurar logging ANTES de inicializar el índice
         self.logger = logging.getLogger(__name__)
+
+        self._initialize_index()
 
     def _initialize_index(self):
         """Inicializa el índice FAISS según el tipo especificado."""
@@ -50,31 +50,49 @@ class FAISSVectorStore:
         self.logger.info(f"Índice FAISS inicializado: {self.index_type}, dimensión: {self.dimension}")
 
     def add_embeddings(self,
-                      embeddings: np.ndarray,
-                      texts: List[str],
-                      image_paths: Optional[List[str]] = None,
-                      page_numbers: Optional[List[int]] = None,
-                      chunk_ids: Optional[List[str]] = None) -> List[int]:
+                      embeddings: Optional[np.ndarray] = None,
+                      text_chunks: Optional[List[str]] = None,
+                      metadata: Optional[List[Dict[str, Any]]] = None,
+                      images: Optional[List[Dict[str, Any]]] = None,
+                      processed_data: Optional[Dict[str, Any]] = None) -> List[int]:
         """
         Agrega embeddings de texto al índice FAISS junto con sus metadatos.
 
+        Puede recibir parámetros individuales O un diccionario processed_data del IngestionService.
+
         Args:
-            embeddings (np.ndarray): Array de embeddings de forma (n_samples, dimension)
-            texts (List[str]): Lista de textos correspondientes a cada embedding
-            image_paths (List[str], optional): Rutas de imágenes asociadas a cada chunk
-            page_numbers (List[int], optional): Números de página del PDF
-            chunk_ids (List[str], optional): IDs personalizados para cada chunk
+            embeddings (np.ndarray, optional): Array de embeddings de forma (n_samples, dimension)
+            text_chunks (List[str], optional): Lista de textos correspondientes a cada embedding
+            metadata (List[Dict[str, Any]], optional): Metadatos para cada chunk
+            images (List[Dict[str, Any]], optional): Lista de imágenes del PDF
+            processed_data (Dict[str, Any], optional): Diccionario con toda la información procesada
 
         Returns:
             List[int]: Lista de IDs asignados a cada embedding
         """
+        # Si se proporciona processed_data, extraer los valores de ahí
+        if processed_data is not None:
+            embeddings = processed_data.get("embeddings")
+            text_chunks = processed_data.get("text_chunks", [])
+            metadata = processed_data.get("metadata", [])
+            images = processed_data.get("images", [])
+
+        # Validaciones
+        if embeddings is None or text_chunks is None:
+            raise ValueError("Se requieren embeddings y text_chunks (ya sea como parámetros o en processed_data)")
+
         if embeddings.shape[1] != self.dimension:
             raise ValueError(f"Dimensión de embeddings ({embeddings.shape[1]}) no coincide con la esperada ({self.dimension})")
 
-        if len(embeddings) != len(texts):
+        if len(embeddings) != len(text_chunks):
             raise ValueError("El número de embeddings debe coincidir con el número de textos")
 
-        # Normalizar embeddings para búsqueda por cosine similarity si es necesario
+        # Si no hay metadatos, crear metadatos básicos
+        if not metadata:
+            metadata = [{"chunk_id": f"chunk_{i}", "page_number": None, "chunk_index": i}
+                       for i in range(len(text_chunks))]
+
+        # Normalizar embeddings para búsqueda por cosine similarity
         faiss.normalize_L2(embeddings)
 
         # Entrenar el índice si es necesario (para IVF)
@@ -86,21 +104,30 @@ class FAISSVectorStore:
         start_idx = len(self.metadata)
         self.index.add(embeddings)
 
-        # Generar IDs y agregar metadatos
+        # Generar IDs y agregar metadatos enriquecidos
         assigned_ids = []
-        for i, text in enumerate(texts):
-            doc_id = chunk_ids[i] if chunk_ids else f"doc_{self.next_id}"
+        for i, (text, chunk_metadata) in enumerate(zip(text_chunks, metadata)):
+            doc_id = chunk_metadata.get("chunk_id", f"doc_{self.next_id}")
             assigned_ids.append(self.next_id)
 
-            metadata = {
+            # Buscar imágenes asociadas a este chunk por página
+            page_number = chunk_metadata.get("page_number")
+            associated_images = []
+            if images and page_number is not None:
+                associated_images = [img for img in images if img.get("page") == page_number]
+
+            # Crear metadatos enriquecidos para FAISS
+            faiss_metadata = {
                 "id": doc_id,
                 "text": text,
-                "image_path": image_paths[i] if image_paths else None,
-                "page_number": page_numbers[i] if page_numbers else None,
-                "faiss_index": start_idx + i
+                "page_number": page_number,
+                "chunk_index": chunk_metadata.get("chunk_index", i),
+                "faiss_index": start_idx + i,
+                "associated_images": len(associated_images),
+                "image_info": associated_images[:3] if associated_images else []  # Limitar a 3 imágenes max
             }
 
-            self.metadata.append(metadata)
+            self.metadata.append(faiss_metadata)
             self.id_to_index[self.next_id] = start_idx + i
             self.next_id += 1
 
