@@ -9,17 +9,27 @@ from sentence_transformers import SentenceTransformer
 
 from src.ingestion.model import ExtractedContent
 
+# Para OCR cuando el PDF no tiene texto extraíble
+try:
+    import pytesseract
+    HAS_OCR = True
+except ImportError:
+    HAS_OCR = False
+    print("⚠️  pytesseract no está disponible. PDFs con solo imágenes no podrán procesarse con OCR.")
+
 
 class PDFPreprocessor:
     """
     Clase para extraer y procesar contenido de PDFs para RAG multimodal.
     Extrae texto e imágenes, genera chunks y prepara embeddings.
+    Incluye soporte para OCR cuando el PDF contiene solo imágenes.
     """
 
     def __init__(self,
                  chunk_size: int = 500,
                  chunk_overlap: int = 50,
-                 embedding_model: str = "all-MiniLM-L6-v2"):
+                 #embedding_model: str = "all-MiniLM-L6-v2",
+                 use_ocr: bool = True):
         """
         Inicializa el preprocesador de PDFs.
 
@@ -27,13 +37,15 @@ class PDFPreprocessor:
             chunk_size (int): Tamaño máximo de cada chunk de texto
             chunk_overlap (int): Solapamiento entre chunks
             embedding_model (str): Modelo para generar embeddings
+            use_ocr (bool): Si usar OCR para PDFs con solo imágenes
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.embedding_model_name = embedding_model
+        #self.embedding_model_name = embedding_model
+        self.use_ocr = use_ocr and HAS_OCR
 
         # Inicializar modelo de embeddings
-        self.embedding_model = SentenceTransformer(embedding_model)
+        #self.embedding_model = SentenceTransformer(embedding_model)
 
         # Configurar logging
         self.logger = logging.getLogger(__name__)
@@ -45,6 +57,7 @@ class PDFPreprocessor:
     def extract_content_from_pdf(self, pdf_path: str) -> ExtractedContent:
         """
         Extrae todo el contenido (texto e imágenes) de un PDF.
+        Si el PDF no tiene texto extraíble, usa OCR.
 
         Args:
             pdf_path (str): Ruta al archivo PDF
@@ -64,12 +77,21 @@ class PDFPreprocessor:
         all_text = []
         images = []
         page_texts = {}
+        total_text_length = 0
 
         for page_num in range(len(doc)):
             page = doc[page_num]
 
             # Extraer texto de la página
             page_text = page.get_text()
+            total_text_length += len(page_text.strip())
+            
+            # Si no hay texto y OCR está habilitado, intentar OCR
+            if len(page_text.strip()) == 0 and self.use_ocr:
+                self.logger.info(f"Página {page_num} sin texto extraíble, intentando OCR...")
+                page_text = self._extract_text_with_ocr(page)
+                total_text_length += len(page_text.strip())
+            
             page_texts[page_num] = page_text
             all_text.append(page_text)
 
@@ -79,8 +101,15 @@ class PDFPreprocessor:
 
         doc.close()
 
-        # Procesar texto en chunks
-        text_chunks, metadata = self._create_text_chunks(all_text, page_texts)
+        self.logger.info(f"Total de texto extraído: {total_text_length} caracteres")
+
+        # Si no se extrajo texto, crear contenido básico con descripciones de imágenes
+        if total_text_length == 0:
+            self.logger.warning("No se pudo extraer texto del PDF. Creando contenido basado en imágenes.")
+            text_chunks, metadata = self._create_image_based_content(images)
+        else:
+            # Procesar texto en chunks
+            text_chunks, metadata = self._create_text_chunks(all_text, page_texts)
 
         # Asociar imágenes con chunks de texto más relevantes
         self._associate_images_with_chunks(text_chunks, images, metadata)
@@ -92,6 +121,87 @@ class PDFPreprocessor:
             images=images,
             metadata=metadata
         )
+
+    def _extract_text_with_ocr(self, page) -> str:
+        """
+        Extrae texto de una página usando OCR.
+
+        Args:
+            page: Objeto página de PyMuPDF
+
+        Returns:
+            str: Texto extraído con OCR
+        """
+        if not self.use_ocr:
+            return ""
+
+        try:
+            # Convertir página a imagen
+            mat = fitz.Matrix(2.0, 2.0)  # Aumentar resolución para mejor OCR
+            pix = page.get_pixmap(matrix=mat)
+            img_data = pix.tobytes("png")
+            pil_image = Image.open(io.BytesIO(img_data))
+
+            # Aplicar OCR
+            text = pytesseract.image_to_string(pil_image, lang='eng+spa')
+            
+            pix = None  # Liberar memoria
+            
+            return text.strip()
+
+        except Exception as e:
+            self.logger.warning(f"Error en OCR: {e}")
+            return ""
+
+    def _create_image_based_content(self, images: List[Dict[str, Any]]) -> Tuple[List[str], List[Dict[str, Any]]]:
+        """
+        Crea contenido de texto basado en las imágenes cuando no hay texto extraíble.
+
+        Args:
+            images: Lista de imágenes extraídas
+
+        Returns:
+            Tuple[List[str], List[Dict]]: Chunks de texto y metadatos
+        """
+        chunks = []
+        metadata = []
+
+        if not images:
+            # Si no hay imágenes ni texto, crear contenido mínimo
+            chunks = ["Este es un documento PDF que no contiene texto extraíble ni imágenes procesables."]
+            metadata = [{
+                "page_number": 0,
+                "chunk_id": "default_chunk_0",
+                "chunk_index": 0,
+                "total_chunks_in_page": 1,
+                "associated_images": []
+            }]
+            return chunks, metadata
+
+        # Agrupar imágenes por página
+        pages_with_images = {}
+        for img in images:
+            page_num = img["page"]
+            if page_num not in pages_with_images:
+                pages_with_images[page_num] = []
+            pages_with_images[page_num].append(img)
+
+        # Crear un chunk por página que contiene imágenes
+        for page_num, page_images in pages_with_images.items():
+            chunk_text = f"Página {page_num + 1} contiene {len(page_images)} imagen(es). "
+            chunk_text += f"Esta página forma parte de un documento PDF con contenido visual. "
+            chunk_text += f"Las imágenes pueden contener información importante como gráficos, diagramas, o texto escaneado."
+
+            chunks.append(chunk_text)
+            metadata.append({
+                "page_number": page_num,
+                "chunk_id": f"image_page_{page_num}_chunk_0",
+                "chunk_index": 0,
+                "total_chunks_in_page": 1,
+                "associated_images": page_images
+            })
+
+        return chunks, metadata
 
     def _extract_images_from_page(self, page, page_num: int) -> List[Dict[str, Any]]:
         """
@@ -123,14 +233,17 @@ class PDFPreprocessor:
                     img_path = os.path.join(self.images_dir, img_filename)
                     pil_image.save(img_path)
 
-                    # Obtener bbox de la imagen en la página
-                    bbox = page.get_image_bbox(img)
+                    # Intentar obtener bbox de la imagen en la página
+                    try:
+                        bbox = page.get_image_bbox(img)
+                    except:
+                        bbox = (0, 0, pil_image.width, pil_image.height)
 
                     images.append({
                         "image": pil_image,
                         "page": page_num,
                         "bbox": bbox,
-                        "path": img_path,
+                        "image_path": img_path,
                         "filename": img_filename,
                         "size": pil_image.size
                     })
@@ -275,9 +388,9 @@ class PDFPreprocessor:
             Dict[str, Any]: Estadísticas del preprocessor
         """
         return {
-            "embedding_model": self.embedding_model_name,
+            #"embedding_model": self.embedding_model_name,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            "embedding_dimension": self.embedding_model.get_sentence_embedding_dimension(),
+            #"embedding_dimension": self.embedding_model.get_sentence_embedding_dimension(),
             "images_directory": self.images_dir
         }
