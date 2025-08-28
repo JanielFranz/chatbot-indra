@@ -18,3 +18,4 @@ requests>=2.31.0
 pymupdf
 pdf2image>=1.16.0
 poppler-utils
+pytesseract

@@ -5,15 +5,20 @@ from PIL import Image
 import io
 from typing import List, Dict, Any, Tuple
 import logging
-from sentence_transformers import SentenceTransformer
 
 from src.ingestion.model import ExtractedContent
 
 # Para OCR cuando el PDF no tiene texto extraíble
 try:
     import pytesseract
+    # Configurar ruta de Tesseract en Windows
+    import os
+    tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
     HAS_OCR = True
 except ImportError:
+    pytesseract = None
     HAS_OCR = False
     print("⚠️  pytesseract no está disponible. PDFs con solo imágenes no podrán procesarse con OCR.")
 
@@ -85,11 +90,12 @@ class PDFPreprocessor:
             # Extraer texto de la página
             page_text = page.get_text()
             total_text_length += len(page_text.strip())
-            
+            self.logger.info(f"El texto que se pudo extrar sin OCR es: {page_text.strip()}")
             # Si no hay texto y OCR está habilitado, intentar OCR
-            if len(page_text.strip()) == 0 and self.use_ocr:
+            if len(page_text.strip()) == 0: #and self.use_ocr:
                 self.logger.info(f"Página {page_num} sin texto extraíble, intentando OCR...")
                 page_text = self._extract_text_with_ocr(page)
+                self.logger.info(f"El texto extraido con OCR es el siguiente: {page_text}")
                 total_text_length += len(page_text.strip())
             
             page_texts[page_num] = page_text
@@ -132,7 +138,7 @@ class PDFPreprocessor:
         Returns:
             str: Texto extraído con OCR
         """
-        if not self.use_ocr:
+        if not self.use_ocr or not HAS_OCR:
             return ""
 
         try:

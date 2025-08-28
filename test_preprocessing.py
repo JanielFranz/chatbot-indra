@@ -12,7 +12,7 @@ from pathlib import Path
 # Agregar el directorio src al path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.utils.preprocess import PDFPreprocessor, process_pdf_document
+from src.utils.preprocess import PDFPreprocessor
 from src.database.core_faiss import FAISSVectorStore
 
 
@@ -52,6 +52,7 @@ def main():
 
         # Mostrar estadísticas
         logger.info(f"✅ Contenido extraído:")
+        logger.info(f" Texto")
         logger.info(f"   - Chunks de texto: {processed_data['total_chunks']}")
         logger.info(f"   - Imágenes: {processed_data['total_images']}")
         logger.info(f"   - Dimensión embeddings: {processed_data['embedding_dimension']}")
