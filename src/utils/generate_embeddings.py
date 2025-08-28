@@ -16,6 +16,10 @@ class EmbeddingsGenerator:
         embeddings = self.embedding_model.encode(texts, convert_to_numpy=True)
         return embeddings
 
+    def generate_embedding(self, text: str) -> np.ndarray:
+        """Genera embedding para un solo texto."""
+        return self.embedding_model.encode([text], convert_to_numpy=True)[0]
+
     def get_embedding_dimension(self) -> int:
         """Retorna la dimensión de los embeddings."""
         return self.embedding_model.get_sentence_embedding_dimension()
