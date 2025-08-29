@@ -36,7 +36,16 @@ class IngestionService:
         self.vector_store = vector_store
         self.logger = logger
 
-    def transform_pdf_to_embeddings(self, file_path: str) -> Dict[str, Any]:
+    def transform_pdf_to_embeddings(self) -> Dict[str, Any]:
+        import os
+        # Obtener la ruta absoluta del archivo PDF
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        file_path = os.path.join(current_dir, "data", "rag-challenge.pdf")
+
+        # Verificar que el archivo existe
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"No se encontró el archivo PDF en: {file_path}")
+
         """
         Procesa un PDF y genera embeddings almacenándolos en el vector store.
         
@@ -151,16 +160,16 @@ def create_ingestion_service() -> IngestionService:
 
 
 # Función de compatibilidad para código existente
-def transform_pdf_to_embeddings(file_path: str) -> Dict[str, Any]:
+def transform_pdf_to_embeddings(file_path: str = None) -> Dict[str, Any]:
     """
     Función de conveniencia que crea el servicio para uso fuera de FastAPI.
     Para endpoints de FastAPI usar directamente Depends(get_ingestion_service).
     
     Args:
-        file_path: Ruta al archivo PDF
-        
+        file_path: Ruta al archivo PDF (deprecated, se ignora)
+
     Returns:
         Dict con el resultado del procesamiento
     """
     service = create_ingestion_service()
-    return service.transform_pdf_to_embeddings(file_path)
+    return service.transform_pdf_to_embeddings()

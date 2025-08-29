@@ -24,7 +24,7 @@ class ProcessDocumentResponse(BaseModel):
 
 @router.post("", response_model=ProcessDocumentResponse)
 async def process_document(
-    request: ProcessDocumentRequest,
+    #request: ProcessDocumentRequest,
     # Aquí es donde ocurre la magia de DI - FastAPI inyecta automáticamente el servicio
     service: IngestionService = Depends(get_ingestion_service)
 ):
@@ -35,11 +35,11 @@ async def process_document(
     FastAPI automáticamente crea e inyecta todas las dependencias del IngestionService.
     """
     try:
-        if not os.path.exists(request.file_path):
-            raise HTTPException(status_code=404, detail=f"Archivo no encontrado: {request.file_path}")
+        #if not os.path.exists(request.file_path):
+            #raise HTTPException(status_code=404, detail=f"Archivo no encontrado: {request.file_path}")
 
-        result_message = service.transform_pdf_to_embeddings(request.file_path)
-
+        #result_message = service.transform_pdf_to_embeddings(request.file_path)
+        result_message = service.transform_pdf_to_embeddings()
         return ProcessDocumentResponse(
             success=True,
             message=result_message

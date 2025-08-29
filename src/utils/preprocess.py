@@ -95,7 +95,7 @@ class PDFPreprocessor:
             if len(page_text.strip()) == 0: #and self.use_ocr:
                 self.logger.info(f"Página {page_num} sin texto extraíble, intentando OCR...")
                 page_text = self._extract_text_with_ocr(page)
-                self.logger.info(f"El texto extraido con OCR es el siguiente: {page_text}")
+                #self.logger.info(f"La página y el texto extraido con OCR es el siguiente: {page_num} || {page_text}")
                 total_text_length += len(page_text.strip())
             
             page_texts[page_num] = page_text
@@ -298,6 +298,8 @@ class PDFPreprocessor:
                     "total_chunks_in_page": len(page_chunks),
                     "associated_images": []  # Se llenará después
                 })
+
+                self.logger.info(f"Chunk creado: {metadata[-1]['chunk_id']} (Página {page_num}, Índice {chunk_idx}), chunk: {chunk} ")
 
         return chunks, metadata
 

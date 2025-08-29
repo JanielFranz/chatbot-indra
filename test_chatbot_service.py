@@ -24,18 +24,19 @@ def setup_test_data():
     print("📦 Configurando datos de prueba...")
 
     # Ruta al PDF de ejemplo
-    pdf_path = "src/data/rag-challenge.pdf"
+    #pdf_path = "src/data/rag-challenge.pdf"
 
-    if not os.path.exists(pdf_path):
-        print(f"❌ Error: No se encontró el archivo PDF en {pdf_path}")
-        return False
+    #if not os.path.exists(pdf_path):
+        #print(f"❌ Error: No se encontró el archivo PDF en {pdf_path}")
+        #return False
 
     try:
         # Crear servicio de ingesta y procesar el PDF
         ingestion_service = create_ingestion_service()
-        print(f"   📄 Procesando PDF: {pdf_path}")
+        #print(f"   📄 Procesando PDF: {pdf_path}")
+        print(f"   📄 Procesando PDF ")
 
-        result = ingestion_service.transform_pdf_to_embeddings(pdf_path)
+        result = ingestion_service.transform_pdf_to_embeddings()
 
         if result["success"]:
             print("   ✅ PDF procesado exitosamente")
@@ -66,7 +67,7 @@ def test_basic_question_answering():
         # Lista de preguntas de prueba
         test_questions = [
             "What is this document about?",
-            "¿De qué trata este documento?",
+            "Give me the diagram that illustrates the solution architecture",
             "What are the main topics covered?",
             "Are there any images in this document?",
             "Tell me about the content"

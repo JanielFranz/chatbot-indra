@@ -112,8 +112,10 @@ class FAISSVectorStore:
 
             # Buscar imágenes asociadas a este chunk por página
             page_number = chunk_metadata.get("page_number")
+            #self.logger.info(f"Documento! {doc_id} ({page_number}) {text}")
             associated_images = []
             if images and page_number is not None:
+                #self.logger.info(f"Imagenes del PDF de acuerdo a la pag: {images[page_number]}")
                 associated_images = [img for img in images if img.get("page") == page_number]
 
             # Crear metadatos enriquecidos para FAISS
@@ -127,6 +129,8 @@ class FAISSVectorStore:
                 "image_info": associated_images[:3] if associated_images else []  # Limitar a 3 imágenes max
             }
 
+            #self.logger.info(f"El texto: {faiss_metadata['text']}")
+            #self.logger.info(f"page number: {faiss_metadata['page_number']} - asociated images: {faiss_metadata["associated_images"]} - image info: {faiss_metadata['image_info']}")
             self.metadata.append(faiss_metadata)
             self.id_to_index[self.next_id] = start_idx + i
             self.next_id += 1
@@ -177,7 +181,7 @@ class FAISSVectorStore:
                         "similarity": 1.0 / (1.0 + float(distances[0][i]))
                     }
                 results.append(result)
-
+        self.logger.info(f"resultados de busqueda: {distances[0].tolist(), results}")
         return distances[0].tolist(), results
 
     def get_by_id(self, doc_id: int) -> Optional[Dict[str, Any]]:
