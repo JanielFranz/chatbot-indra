@@ -1,10 +1,10 @@
 from src.database.core_faiss import FAISSVectorStore
 from src.utils.embeddings.generator import EmbeddingsGenerator
+from src.llm.chain_manager import LLMChainManager
 import logging
 from typing import Dict, Any
 from fastapi import Depends
 import os
-from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env
@@ -13,10 +13,9 @@ load_dotenv()
 from src.container import (
     vector_store_dependency,
     embeddings_generator_dependency,
-    logger_dependency
+    logger_dependency,
+    llm_chain_manager_dependency
 )
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
 class ChatbotService:
@@ -25,10 +24,14 @@ class ChatbotService:
     y genera respuestas usando RAG (Retrieval Augmented Generation).
     """
 
-    def __init__(self, embeddings_generator: EmbeddingsGenerator,
-                 vector_store: FAISSVectorStore, logger: logging.Logger):
+    def __init__(self,
+                 embeddings_generator: EmbeddingsGenerator,
+                 vector_store: FAISSVectorStore,
+                 llm_chain_manager: LLMChainManager,
+                 logger: logging.Logger):
         self.embeddings_generator = embeddings_generator
         self.vector_store = vector_store
+        self.llm_chain_manager = llm_chain_manager
         self.logger = logger
 
     def answer_user_question(self, question: str) -> Dict[str, Any]:
@@ -65,7 +68,7 @@ class ChatbotService:
 
             # Procesar resultados
             best_match = results[0]
-            answer_text = best_match.get('text', '')
+            context_text = best_match.get('text', '')
 
             # Recopilar información de fuentes
             sources = []
@@ -84,16 +87,32 @@ class ChatbotService:
                 if 'associated_images' in result and result['associated_images'] > 0:
                     related_images.extend(result.get('image_paths', []))
 
-            # Generar respuesta usando LLM
-            llm_answer = self._generate_llm_response(answer_text, question)
+            # Generar respuesta usando el LLM Chain Manager
+            llm_response = self.llm_chain_manager.generate_rag_response(
+                context=context_text,
+                question=question,
+                config={'max_context_length': 2000}
+            )
+
+            if llm_response.get('success', False):
+                answer = llm_response['answer']
+            else:
+                # Usar respuesta de fallback si el LLM falla
+                answer = llm_response.get('answer', context_text[:500] + "...")
+                self.logger.warning(f"LLM falló, usando fallback: {llm_response.get('error', 'Unknown error')}")
 
             return {
                 "success": True,
-                "answer": llm_answer,
+                "answer": answer,
                 "sources": sources,
                 "images": related_images,
                 "total_results": len(results),
-                "question": question
+                "question": question,
+                "llm_metadata": {
+                    "provider": llm_response.get('provider', 'unknown'),
+                    "prompt_stats": llm_response.get('prompt_stats', {}),
+                    "fallback_used": llm_response.get('fallback', False)
+                }
             }
 
         except Exception as e:
@@ -106,41 +125,12 @@ class ChatbotService:
                 "images": []
             }
 
-    def _generate_llm_response(self, context: str, question: str) -> str:
-        """
-        Genera una respuesta usando el LLM con el contexto encontrado.
-
-        Args:
-            context: Texto de contexto encontrado en la búsqueda
-            question: Pregunta original del usuario
-
-        Returns:
-            Respuesta generada por el LLM
-        """
-        try:
-            llm = ChatGroq(
-                model='openai/gpt-oss-120b',
-                temperature=0.7,
-                api_key=GROQ_API_KEY
-            )
-
-            prompt = f"Basándote en este contexto: '{context[:500]}' responde esta pregunta de manera clara y concisa: '{question}'"
-            llm_response = llm.invoke(prompt)
-
-            answer = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
-            self.logger.info(f"Respuesta generada por LLM: {answer}")
-
-            return answer
-
-        except Exception as e:
-            self.logger.error(f"Error generando respuesta LLM: {e}")
-            return context[:500] + "..."  # Fallback al contexto original
-
 
 # Factory function para el servicio usando FastAPI Depends
 def get_chatbot_service(
     embeddings_generator: EmbeddingsGenerator = Depends(embeddings_generator_dependency),
     vector_store: FAISSVectorStore = Depends(vector_store_dependency),
+    llm_chain_manager: LLMChainManager = Depends(llm_chain_manager_dependency),
     logger: logging.Logger = Depends(logger_dependency)
 ) -> ChatbotService:
     """
@@ -150,6 +140,7 @@ def get_chatbot_service(
     return ChatbotService(
         embeddings_generator=embeddings_generator,
         vector_store=vector_store,
+        llm_chain_manager=llm_chain_manager,
         logger=logger
     )
 
@@ -162,11 +153,13 @@ def create_chatbot_service() -> ChatbotService:
     from src.container import (
         create_embeddings_generator,
         create_vector_store,
+        create_llm_chain_manager,
         get_logger
     )
 
     return ChatbotService(
         embeddings_generator=create_embeddings_generator(),
         vector_store=create_vector_store(),
+        llm_chain_manager=create_llm_chain_manager(),
         logger=get_logger()
     )

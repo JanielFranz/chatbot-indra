@@ -15,6 +15,11 @@ from src.utils.preprocessing.pdf_processor import PDFPreprocessor
 from src.utils.embeddings.generator import EmbeddingsGenerator
 from src.logging import configure_logging, LogLevels
 
+# Importaciones del módulo LLM
+from src.llm.chain_manager import LLMChainManager
+from src.llm.providers.groq_provider import GroqProvider
+from src.llm.prompts.prompt_manager import PromptManager
+
 
 # Configurar logging al inicio
 configure_logging(LogLevels.info)
@@ -45,6 +50,29 @@ def get_vector_store() -> FAISSVectorStore:
     return FAISSVectorStore()
 
 
+# Factory functions para LLM
+@lru_cache()
+def get_groq_provider() -> GroqProvider:
+    """Crea un GroqProvider singleton."""
+    return GroqProvider(logger=get_logger())
+
+
+@lru_cache()
+def get_prompt_manager() -> PromptManager:
+    """Crea un PromptManager singleton."""
+    return PromptManager(logger=get_logger())
+
+
+@lru_cache()
+def get_llm_chain_manager() -> LLMChainManager:
+    """Crea un LLMChainManager singleton."""
+    return LLMChainManager(
+        provider=get_groq_provider(),
+        prompt_manager=get_prompt_manager(),
+        logger=get_logger()
+    )
+
+
 # Funciones de dependencia para usar con FastAPI Depends()
 def pdf_processor_dependency() -> PDFPreprocessor:
     """Dependency provider para PDFPreprocessor."""
@@ -66,6 +94,22 @@ def logger_dependency() -> logging.Logger:
     return get_logger()
 
 
+# Funciones de dependencia para LLM
+def groq_provider_dependency() -> GroqProvider:
+    """Dependency provider para GroqProvider."""
+    return get_groq_provider()
+
+
+def prompt_manager_dependency() -> PromptManager:
+    """Dependency provider para PromptManager."""
+    return get_prompt_manager()
+
+
+def llm_chain_manager_dependency() -> LLMChainManager:
+    """Dependency provider para LLMChainManager."""
+    return get_llm_chain_manager()
+
+
 # Factory functions para uso fuera de FastAPI (scripts, testing, etc.)
 def create_pdf_processor() -> PDFPreprocessor:
     """Factory function para crear PDFPreprocessor fuera del contexto de FastAPI."""
@@ -80,3 +124,22 @@ def create_embeddings_generator() -> EmbeddingsGenerator:
 def create_vector_store() -> FAISSVectorStore:
     """Factory function para crear FAISSVectorStore fuera del contexto de FastAPI."""
     return FAISSVectorStore()
+
+
+# Factory functions para LLM (uso fuera de FastAPI)
+def create_groq_provider() -> GroqProvider:
+    """Factory function para crear GroqProvider fuera del contexto de FastAPI."""
+    return GroqProvider()
+
+
+def create_prompt_manager() -> PromptManager:
+    """Factory function para crear PromptManager fuera del contexto de FastAPI."""
+    return PromptManager()
+
+
+def create_llm_chain_manager() -> LLMChainManager:
+    """Factory function para crear LLMChainManager fuera del contexto de FastAPI."""
+    return LLMChainManager(
+        provider=create_groq_provider(),
+        prompt_manager=create_prompt_manager()
+    )
