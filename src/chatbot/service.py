@@ -1,14 +1,24 @@
+from openai import api_key
+
 from src.database.core_faiss import FAISSVectorStore
 from src.utils.generate_embeddings import EmbeddingsGenerator
 import logging
 from typing import Dict, Any
 from fastapi import Depends
+import os
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 from src.container import (
     vector_store_dependency,
     embeddings_generator_dependency,
     logger_dependency
 )
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 class ChatbotService:
 
@@ -71,6 +81,20 @@ class ChatbotService:
                 # Agregar imágenes relacionadas si existen
                 if 'associated_images' in result and result['associated_images'] > 0:
                     related_images.extend(result.get('image_paths', []))
+
+            llm = ChatGroq(
+                model='openai/gpt-oss-120b',
+                temperature=0.7,
+                api_key=GROQ_API_KEY
+            )
+
+            try:
+                test_prompt = f"Following this context: '{answer_text[:500]}' answer this question quickly and concisely: '{question}'"
+                llm_response = llm.invoke(test_prompt)
+                llm_answer = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
+                self.logger.info(f"answer from LLM: {llm_answer}")
+            except Exception as e:
+                self.logger.error(e)
 
             return {
                 "success": True,

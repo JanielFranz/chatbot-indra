@@ -5,6 +5,10 @@ Mucho más simple que crear un contenedor personalizado.
 import logging
 from functools import lru_cache
 from fastapi import Depends
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env al inicio
+load_dotenv()
 
 from src.database.core_faiss import FAISSVectorStore
 from src.utils.preprocess import PDFPreprocessor

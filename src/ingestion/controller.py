@@ -42,7 +42,7 @@ async def process_document(
         result_message = service.transform_pdf_to_embeddings()
         return ProcessDocumentResponse(
             success=True,
-            message=result_message
+            message=result_message["message"]
         )
 
     except Exception as e:
