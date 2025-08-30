@@ -98,7 +98,8 @@ class ChatbotService:
 
             return {
                 "success": True,
-                "answer": answer_text,
+                #"answer": answer_text,
+                "answer": llm_answer,
                 "sources": sources,
                 "images": related_images,
                 "total_results": len(results),
