@@ -19,3 +19,6 @@ pymupdf
 pdf2image>=1.16.0
 poppler-utils
 pytesseract
+python-dotenv
+langchain-groq
+
