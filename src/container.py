@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.database.core_faiss import FAISSVectorStore
-from src.utils.preprocess import PDFPreprocessor
-from src.utils.generate_embeddings import EmbeddingsGenerator
+from src.utils.preprocessing.pdf_processor import PDFPreprocessor
+from src.utils.embeddings.generator import EmbeddingsGenerator
 from src.logging import configure_logging, LogLevels
 
 
@@ -64,3 +64,19 @@ def vector_store_dependency() -> FAISSVectorStore:
 def logger_dependency() -> logging.Logger:
     """Dependency provider para Logger."""
     return get_logger()
+
+
+# Factory functions para uso fuera de FastAPI (scripts, testing, etc.)
+def create_pdf_processor() -> PDFPreprocessor:
+    """Factory function para crear PDFPreprocessor fuera del contexto de FastAPI."""
+    return PDFPreprocessor()
+
+
+def create_embeddings_generator() -> EmbeddingsGenerator:
+    """Factory function para crear EmbeddingsGenerator fuera del contexto de FastAPI."""
+    return EmbeddingsGenerator()
+
+
+def create_vector_store() -> FAISSVectorStore:
+    """Factory function para crear FAISSVectorStore fuera del contexto de FastAPI."""
+    return FAISSVectorStore()

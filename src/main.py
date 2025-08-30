@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from src.ingestion.controller import router as ingestion_router
-from src.chatbot.controller import router as chatbot_router
+from src.app.ingestion.controller import router as ingestion_router
+from src.app.chatbot.controller import router as chatbot_router
 
 app = FastAPI(
     title="RAG Challenge API",

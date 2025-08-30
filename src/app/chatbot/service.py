@@ -1,7 +1,5 @@
-from openai import api_key
-
 from src.database.core_faiss import FAISSVectorStore
-from src.utils.generate_embeddings import EmbeddingsGenerator
+from src.utils.embeddings.generator import EmbeddingsGenerator
 import logging
 from typing import Dict, Any
 from fastapi import Depends
@@ -20,11 +18,15 @@ from src.container import (
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+
 class ChatbotService:
+    """
+    Servicio de chatbot que maneja las consultas de usuarios
+    y genera respuestas usando RAG (Retrieval Augmented Generation).
+    """
 
     def __init__(self, embeddings_generator: EmbeddingsGenerator,
                  vector_store: FAISSVectorStore, logger: logging.Logger):
-
         self.embeddings_generator = embeddings_generator
         self.vector_store = vector_store
         self.logger = logger
@@ -40,7 +42,7 @@ class ChatbotService:
             Dict con la respuesta, metadatos e imágenes relacionadas
         """
         try:
-            self.logger.debug(f"question to answer: {question}")
+            self.logger.debug(f"Procesando pregunta: {question}")
 
             # Generar embedding de la pregunta
             question_as_embedding = self.embeddings_generator.generate_embedding(question)
@@ -82,23 +84,11 @@ class ChatbotService:
                 if 'associated_images' in result and result['associated_images'] > 0:
                     related_images.extend(result.get('image_paths', []))
 
-            llm = ChatGroq(
-                model='openai/gpt-oss-120b',
-                temperature=0.7,
-                api_key=GROQ_API_KEY
-            )
-
-            try:
-                test_prompt = f"Following this context: '{answer_text[:500]}' answer this question quickly and concisely: '{question}'"
-                llm_response = llm.invoke(test_prompt)
-                llm_answer = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
-                self.logger.info(f"answer from LLM: {llm_answer}")
-            except Exception as e:
-                self.logger.error(e)
+            # Generar respuesta usando LLM
+            llm_answer = self._generate_llm_response(answer_text, question)
 
             return {
                 "success": True,
-                #"answer": answer_text,
                 "answer": llm_answer,
                 "sources": sources,
                 "images": related_images,
@@ -116,6 +106,36 @@ class ChatbotService:
                 "images": []
             }
 
+    def _generate_llm_response(self, context: str, question: str) -> str:
+        """
+        Genera una respuesta usando el LLM con el contexto encontrado.
+
+        Args:
+            context: Texto de contexto encontrado en la búsqueda
+            question: Pregunta original del usuario
+
+        Returns:
+            Respuesta generada por el LLM
+        """
+        try:
+            llm = ChatGroq(
+                model='openai/gpt-oss-120b',
+                temperature=0.7,
+                api_key=GROQ_API_KEY
+            )
+
+            prompt = f"Basándote en este contexto: '{context[:500]}' responde esta pregunta de manera clara y concisa: '{question}'"
+            llm_response = llm.invoke(prompt)
+
+            answer = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
+            self.logger.info(f"Respuesta generada por LLM: {answer}")
+
+            return answer
+
+        except Exception as e:
+            self.logger.error(f"Error generando respuesta LLM: {e}")
+            return context[:500] + "..."  # Fallback al contexto original
+
 
 # Factory function para el servicio usando FastAPI Depends
 def get_chatbot_service(
@@ -126,7 +146,6 @@ def get_chatbot_service(
     """
     Factory function para crear ChatbotService con todas sus dependencias.
     Esto es equivalente a @Autowired en Spring Boot pero usando FastAPI Depends().
-    SOLO funciona dentro de endpoints de FastAPI.
     """
     return ChatbotService(
         embeddings_generator=embeddings_generator,
@@ -139,13 +158,15 @@ def get_chatbot_service(
 def create_chatbot_service() -> ChatbotService:
     """
     Factory function para crear ChatbotService fuera del contexto de FastAPI.
-    Usa las funciones de factory directamente sin Depends().
-    Similar a ApplicationContext.getBean() en Spring Boot.
     """
-    from src.container import get_embeddings_generator, get_vector_store, get_logger
+    from src.container import (
+        create_embeddings_generator,
+        create_vector_store,
+        get_logger
+    )
 
     return ChatbotService(
-        embeddings_generator=get_embeddings_generator(),
-        vector_store=get_vector_store(),
+        embeddings_generator=create_embeddings_generator(),
+        vector_store=create_vector_store(),
         logger=get_logger()
     )

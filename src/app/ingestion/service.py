@@ -1,7 +1,7 @@
 from src.database.core_faiss import FAISSVectorStore
-from src.ingestion.model import ExtractedContent
-from src.utils.preprocess import PDFPreprocessor
-from src.utils.generate_embeddings import EmbeddingsGenerator
+from .models import ExtractedContent
+from src.utils.preprocessing.pdf_processor import PDFPreprocessor
+from src.utils.embeddings.generator import EmbeddingsGenerator
 import numpy as np
 import logging
 from typing import Dict, Any
@@ -18,7 +18,7 @@ class IngestionService:
     """
     Servicio de ingesta con inyección de dependencias usando FastAPI.
     Similar a un @Service en Spring Boot pero usando FastAPI Depends().
-    
+
     Este servicio maneja todo el proceso de extracción, embedding y almacenamiento
     de documentos PDF en la base de datos vectorial FAISS.
     """
@@ -37,30 +37,27 @@ class IngestionService:
         self.logger = logger
 
     def transform_pdf_to_embeddings(self) -> Dict[str, Any]:
+        """
+        Procesa un PDF y genera embeddings almacenándolos en el vector store.
+
+        Returns:
+            Dict[str, Any]: Resultado del procesamiento con estadísticas
+        """
         import os
         # Obtener la ruta absoluta del archivo PDF
-        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         file_path = os.path.join(current_dir, "data", "rag-challenge.pdf")
 
         # Verificar que el archivo existe
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"No se encontró el archivo PDF en: {file_path}")
 
-        """
-        Procesa un PDF y genera embeddings almacenándolos en el vector store.
-        
-        Args:
-            file_path (str): Ruta al archivo PDF a procesar
-            
-        Returns:
-            Dict[str, Any]: Resultado del procesamiento con estadísticas
-        """
         try:
             self.logger.info(f"Iniciando procesamiento de PDF: {file_path}")
-            
+
             # 1. Extraer contenido del PDF
             content: ExtractedContent = self.pdf_processor.extract_content_from_pdf(file_path)
-            
+
             if not content.text_chunks:
                 raise ValueError("No se pudo extraer texto del PDF")
 
@@ -72,7 +69,7 @@ class IngestionService:
             processed_data = {
                 "embeddings": embeddings,
                 "text_chunks": content.text_chunks,
-                "metadata": content.metadata,  # Incluir metadatos del procesamiento
+                "metadata": content.metadata,
                 "images": content.images,
                 "total_chunks": len(content.text_chunks),
                 "total_images": len(content.images),
@@ -100,7 +97,7 @@ class IngestionService:
                 "assigned_ids": assigned_ids,
                 "vector_store_stats": self.vector_store.get_stats()
             }
-            
+
             return result
 
         except Exception as e:
@@ -115,7 +112,7 @@ class IngestionService:
     def get_processing_summary(self) -> Dict[str, Any]:
         """
         Retorna un resumen del estado actual del vector store.
-        
+
         Returns:
             Dict con estadísticas del vector store
         """
@@ -132,7 +129,6 @@ def get_ingestion_service(
     """
     Factory function para crear IngestionService con todas sus dependencias.
     Esto es equivalente a @Autowired en Spring Boot pero usando FastAPI Depends().
-    SOLO funciona dentro de endpoints de FastAPI.
     """
     return IngestionService(
         pdf_processor=pdf_processor,
@@ -147,29 +143,17 @@ def create_ingestion_service() -> IngestionService:
     """
     Factory function para crear IngestionService fuera del contexto de FastAPI.
     Usa las funciones de factory directamente sin Depends().
-    Similar a ApplicationContext.getBean() en Spring Boot.
     """
-    from src.container import get_pdf_processor, get_embeddings_generator, get_vector_store, get_logger
-
-    return IngestionService(
-        pdf_processor=get_pdf_processor(),
-        embeddings_generator=get_embeddings_generator(),
-        vector_store=get_vector_store(),
-        logger=get_logger()
+    from src.container import (
+        create_pdf_processor,
+        create_embeddings_generator,
+        create_vector_store,
+        get_logger
     )
 
-
-# Función de compatibilidad para código existente
-def transform_pdf_to_embeddings(file_path: str = None) -> Dict[str, Any]:
-    """
-    Función de conveniencia que crea el servicio para uso fuera de FastAPI.
-    Para endpoints de FastAPI usar directamente Depends(get_ingestion_service).
-    
-    Args:
-        file_path: Ruta al archivo PDF (deprecated, se ignora)
-
-    Returns:
-        Dict con el resultado del procesamiento
-    """
-    service = create_ingestion_service()
-    return service.transform_pdf_to_embeddings()
+    return IngestionService(
+        pdf_processor=create_pdf_processor(),
+        embeddings_generator=create_embeddings_generator(),
+        vector_store=create_vector_store(),
+        logger=get_logger()
+    )
