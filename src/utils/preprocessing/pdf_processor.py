@@ -6,13 +6,12 @@ import io
 from typing import List, Dict, Any, Tuple
 import logging
 
-from src.ingestion.model import ExtractedContent
+from src.app.ingestion.models import ExtractedContent
 
 # Para OCR cuando el PDF no tiene texto extraíble
 try:
     import pytesseract
     # Configurar ruta de Tesseract en Windows
-    import os
     tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if os.path.exists(tesseract_path):
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
@@ -33,7 +32,6 @@ class PDFPreprocessor:
     def __init__(self,
                  chunk_size: int = 500,
                  chunk_overlap: int = 50,
-                 #embedding_model: str = "all-MiniLM-L6-v2",
                  use_ocr: bool = True):
         """
         Inicializa el preprocesador de PDFs.
@@ -41,16 +39,11 @@ class PDFPreprocessor:
         Args:
             chunk_size (int): Tamaño máximo de cada chunk de texto
             chunk_overlap (int): Solapamiento entre chunks
-            embedding_model (str): Modelo para generar embeddings
             use_ocr (bool): Si usar OCR para PDFs con solo imágenes
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        #self.embedding_model_name = embedding_model
         self.use_ocr = use_ocr and HAS_OCR
-
-        # Inicializar modelo de embeddings
-        #self.embedding_model = SentenceTransformer(embedding_model)
 
         # Configurar logging
         self.logger = logging.getLogger(__name__)
@@ -90,14 +83,14 @@ class PDFPreprocessor:
             # Extraer texto de la página
             page_text = page.get_text()
             total_text_length += len(page_text.strip())
-            self.logger.info(f"El texto que se pudo extrar sin OCR es: {page_text.strip()}")
+            self.logger.info(f"Texto extraído sin OCR: {page_text.strip()}")
+
             # Si no hay texto y OCR está habilitado, intentar OCR
-            if len(page_text.strip()) == 0: #and self.use_ocr:
+            if len(page_text.strip()) == 0:
                 self.logger.info(f"Página {page_num} sin texto extraíble, intentando OCR...")
                 page_text = self._extract_text_with_ocr(page)
-                #self.logger.info(f"La página y el texto extraido con OCR es el siguiente: {page_num} || {page_text}")
                 total_text_length += len(page_text.strip())
-            
+
             page_texts[page_num] = page_text
             all_text.append(page_text)
 
@@ -129,15 +122,7 @@ class PDFPreprocessor:
         )
 
     def _extract_text_with_ocr(self, page) -> str:
-        """
-        Extrae texto de una página usando OCR.
-
-        Args:
-            page: Objeto página de PyMuPDF
-
-        Returns:
-            str: Texto extraído con OCR
-        """
+        """Extrae texto de una página usando OCR."""
         if not self.use_ocr or not HAS_OCR:
             return ""
 
@@ -150,9 +135,9 @@ class PDFPreprocessor:
 
             # Aplicar OCR
             text = pytesseract.image_to_string(pil_image, lang='eng+spa')
-            
+
             pix = None  # Liberar memoria
-            
+
             return text.strip()
 
         except Exception as e:
@@ -160,15 +145,7 @@ class PDFPreprocessor:
             return ""
 
     def _create_image_based_content(self, images: List[Dict[str, Any]]) -> Tuple[List[str], List[Dict[str, Any]]]:
-        """
-        Crea contenido de texto basado en las imágenes cuando no hay texto extraíble.
-
-        Args:
-            images: Lista de imágenes extraídas
-
-        Returns:
-            Tuple[List[str], List[Dict]]: Chunks de texto y metadatos
-        """
+        """Crea contenido de texto basado en las imágenes cuando no hay texto extraíble."""
         chunks = []
         metadata = []
 
@@ -210,16 +187,7 @@ class PDFPreprocessor:
         return chunks, metadata
 
     def _extract_images_from_page(self, page, page_num: int) -> List[Dict[str, Any]]:
-        """
-        Extrae todas las imágenes de una página específica.
-
-        Args:
-            page: Objeto página de PyMuPDF
-            page_num (int): Número de página
-
-        Returns:
-            List[Dict]: Lista de imágenes con metadatos
-        """
+        """Extrae todas las imágenes de una página específica."""
         images = []
         image_list = page.get_images()
 
@@ -263,16 +231,7 @@ class PDFPreprocessor:
         return images
 
     def _create_text_chunks(self, all_text: List[str], page_texts: Dict[int, str]) -> Tuple[List[str], List[Dict[str, Any]]]:
-        """
-        Divide el texto en chunks manejables con metadatos.
-
-        Args:
-            all_text (List[str]): Texto de todas las páginas
-            page_texts (Dict[int, str]): Texto por página
-
-        Returns:
-            Tuple[List[str], List[Dict]]: Chunks de texto y metadatos
-        """
+        """Divide el texto en chunks manejables con metadatos."""
         chunks = []
         metadata = []
 
@@ -299,20 +258,12 @@ class PDFPreprocessor:
                     "associated_images": []  # Se llenará después
                 })
 
-                self.logger.info(f"Chunk creado: {metadata[-1]['chunk_id']} (Página {page_num}, Índice {chunk_idx}), chunk: {chunk} ")
+                self.logger.info(f"Chunk creado: {metadata[-1]['chunk_id']} (Página {page_num}, Índice {chunk_idx})")
 
         return chunks, metadata
 
     def _clean_text(self, text: str) -> str:
-        """
-        Limpia y normaliza el texto extraído.
-
-        Args:
-            text (str): Texto crudo
-
-        Returns:
-            str: Texto limpio
-        """
+        """Limpia y normaliza el texto extraído."""
         # Remover caracteres de control y espacios extras
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'[^\w\s\.\,\!\?\;\:\-\(\)\[\]\"\'\/]', '', text)
@@ -324,15 +275,7 @@ class PDFPreprocessor:
         return '\n'.join(cleaned_lines).strip()
 
     def _split_text_into_chunks(self, text: str) -> List[str]:
-        """
-        Divide texto en chunks con solapamiento.
-
-        Args:
-            text (str): Texto a dividir
-
-        Returns:
-            List[str]: Lista de chunks
-        """
+        """Divide texto en chunks con solapamiento."""
         if len(text) <= self.chunk_size:
             return [text]
 
@@ -362,14 +305,7 @@ class PDFPreprocessor:
                                     text_chunks: List[str],
                                     images: List[Dict[str, Any]],
                                     metadata: List[Dict[str, Any]]):
-        """
-        Asocia imágenes con chunks de texto basándose en la página.
-
-        Args:
-            text_chunks (List[str]): Chunks de texto
-            images (List[Dict]): Imágenes extraídas
-            metadata (List[Dict]): Metadatos de chunks
-        """
+        """Asocia imágenes con chunks de texto basándose en la página."""
         # Crear mapeo de página a imágenes
         page_to_images = {}
         for img in images:
@@ -384,21 +320,12 @@ class PDFPreprocessor:
             if page_num in page_to_images:
                 meta["associated_images"] = page_to_images[page_num]
 
-
-
-
-
     def get_stats(self) -> Dict[str, Any]:
-        """
-        Retorna estadísticas del modelo de embeddings.
-
-        Returns:
-            Dict[str, Any]: Estadísticas del preprocessor
-        """
+        """Retorna estadísticas del preprocessor."""
         return {
-            #"embedding_model": self.embedding_model_name,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            #"embedding_dimension": self.embedding_model.get_sentence_embedding_dimension(),
+            "use_ocr": self.use_ocr,
+            "has_ocr": HAS_OCR,
             "images_directory": self.images_dir
         }

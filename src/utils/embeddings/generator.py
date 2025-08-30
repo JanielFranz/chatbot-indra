@@ -1,9 +1,15 @@
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any
 import numpy as np
 import logging
 from sentence_transformers import SentenceTransformer
 
+
 class EmbeddingsGenerator:
+    """
+    Generador de embeddings usando SentenceTransformers.
+    Maneja la creación de embeddings para texto usando modelos pre-entrenados.
+    """
+
     def __init__(self, embedding_model: str = "all-MiniLM-L6-v2"):
         self.embedding_model_name = embedding_model
         self.embedding_model = SentenceTransformer(embedding_model)
