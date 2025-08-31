@@ -9,7 +9,7 @@ python-multipart>=0.0.6
 email-validator
 faiss-cpu
 numpy>=1.21.0
-gradio>=4.0.0
+gradio
 pydantic>=2.0.0
 sentence-transformers>=2.2.2
 Pillow>=10.0.0
@@ -21,4 +21,5 @@ poppler-utils
 pytesseract
 python-dotenv
 langchain-groq
+gradio_multimodalchatbot
 
