@@ -138,3 +138,6 @@ src/
 
 ## ⚡ How to Run Locally
     pip install -r requirements-dev.txt
+1. Set up environment variables in a `.env` file (e.g., OpenAI API key).
+2. Start the FastAPI server: fastapi run main.py
+3. Start the Gradio frontend: python src\ui\gradio\app.py
