@@ -16,7 +16,7 @@ class GroqProvider:
     Proveedor para interactuar con la API de Groq.
     """
 
-    def __init__(self, model: str = "llama3-8b-8192", temperature: float = 0.7,
+    def __init__(self, model: str = "llama-3.1-8b-instant", temperature: float = 0.7,
                  api_key: Optional[str] = None, logger: Optional[logging.Logger] = None):
         """
         Inicializa el proveedor de Groq.
