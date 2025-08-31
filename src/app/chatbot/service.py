@@ -85,7 +85,17 @@ class ChatbotService:
 
                 # Agregar imágenes relacionadas si existen
                 if 'associated_images' in result and result['associated_images'] > 0:
-                    related_images.extend(result.get('image_paths', []))
+                    image_info = result.get('image_info', [])
+                    for img_info in image_info:
+                        # Extraer solo la ruta de la imagen como string
+                        if isinstance(img_info, dict) and 'image_path' in img_info:
+                            related_images.append(img_info['image_path'])
+                        elif isinstance(img_info, str):
+                            # Si ya es un string, usarlo directamente
+                            related_images.append(img_info)
+
+            # Remover duplicados manteniendo el orden
+            related_images = list(dict.fromkeys(related_images))
 
             # Generar respuesta usando el LLM Chain Manager
             llm_response = self.llm_chain_manager.generate_rag_response(
