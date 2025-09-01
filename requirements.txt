@@ -3,7 +3,6 @@ uvicorn[standard]>=0.24.0
 alembic
 psycopg2-binary
 slowapi
-python-dotenv>=1.0.0
 passlib
 python-multipart>=0.0.6
 email-validator
@@ -11,9 +10,9 @@ faiss-cpu
 numpy>=1.21.0
 gradio==5.44.1
 pydantic>=2.0.0
+torch==2.2.2+cpu
 sentence-transformers>=2.2.2
 Pillow>=10.0.0
-openai>=1.0.0
 requests>=2.31.0
 pymupdf
 pdf2image>=1.16.0
@@ -21,5 +20,4 @@ poppler-utils
 pytesseract
 python-dotenv
 langchain-groq
-gradio_multimodalchatbot
 
