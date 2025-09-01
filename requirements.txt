@@ -7,7 +7,7 @@ passlib
 python-multipart>=0.0.6
 email-validator
 faiss-cpu
-numpy>=1.21.0
+numpy>=1.21.0,<2.0.0
 gradio==5.44.1
 pydantic>=2.0.0
 torch==2.2.2+cpu
