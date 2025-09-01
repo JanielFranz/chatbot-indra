@@ -11,6 +11,5 @@ services:
       - ./temp:/app/temp
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
-      - DATABASE_URL=${DATABASE_URL}
     env_file:
       - .env
