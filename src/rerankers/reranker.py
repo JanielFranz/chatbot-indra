@@ -60,6 +60,7 @@ def rerank_results(context_data: Dict[str, Any]) -> Dict[str, Any]:
         reranked_data["original_count"] = len(sources)
         reranked_data["reranked_count"] = len(top_sources)
 
+        logger.info(f"The reranked data is: {reranked_data}")
         logger.info(f"Reranking completed: {len(sources)} -> {len(top_sources)} results")
         return reranked_data
 

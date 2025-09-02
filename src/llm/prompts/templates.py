@@ -25,17 +25,20 @@ CONTEXT:
 USER QUESTION:
 {question}
 
+IMAGES LENGTH:
+{images_length}
+
 INSTRUCTIONS:
 1. Answer only using the provided context.
 2. If you cannot answer with the given context, clearly state that you do not have enough information.
 3. Be precise, clear, and concise.
 4. If there is specific information such as numbers, dates, or names, include them exactly as they appear in the context.
 5. Structure your answer logically and make it easy to understand.
-
+6. If the image length is greater than 0, consider that images are available to help answer the question. So if you don't find the answer in the context, you can mention that images are available to help.
 ANSWER:"""
 
     @staticmethod
-    def format_rag_prompt(context: str, question: str, max_context_length: int = 2000) -> str:
+    def format_rag_prompt(context: str, question: str, images_length: int,  max_context_length: int = 2000) -> str:
         """
         Formatea el prompt RAG con contexto y pregunta específicos.
 
@@ -52,4 +55,4 @@ ANSWER:"""
             context = context[:max_context_length] + "..."
 
         template = PromptTemplates.get_rag_prompt_template()
-        return template.format(context=context, question=question)
+        return template.format(context=context, question=question, images_length= images_length)

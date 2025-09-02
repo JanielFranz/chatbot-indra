@@ -50,7 +50,7 @@ class LLMChainManager:
             self.logger.error(f"Error creando proveedor por defecto: {e}")
             raise
 
-    def generate_rag_response(self, context: str, question: str,
+    def generate_rag_response(self, context: str, question: str, images_length: int,
                             config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Genera una respuesta RAG completa.
@@ -58,6 +58,7 @@ class LLMChainManager:
         Args:
             context: Contexto encontrado en la búsqueda
             question: Pregunta del usuario
+            images_length: Número de imágenes encontradas
             config: Configuración personalizada
 
         Returns:
@@ -70,6 +71,7 @@ class LLMChainManager:
             prompt = self.prompt_manager.create_rag_prompt(
                 context=context,
                 question=question,
+                images_length=images_length,
                 config=config
             )
 

@@ -38,7 +38,7 @@ class PromptManager:
             }
         }
 
-    def create_rag_prompt(self, context: str, question: str,
+    def create_rag_prompt(self, context: str, question: str, images_length: int,
                          config: Optional[Dict[str, Any]] = None) -> str:
         """
         Crea un prompt optimizado para RAG.
@@ -57,14 +57,11 @@ class PromptManager:
             if config:
                 final_config.update(config)
 
-            # Validar y limpiar inputs
-            context = self._clean_context(context)
-            question = self._clean_question(question)
-
             # Formatear el prompt
             prompt = self.templates.format_rag_prompt(
                 context=context,
                 question=question,
+                images_length=images_length,
                 max_context_length=final_config['max_context_length']
             )
 

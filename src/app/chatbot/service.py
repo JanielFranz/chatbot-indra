@@ -126,6 +126,7 @@ class ChatbotService:
                 question = context_data.get("question", "")
                 context = context_data.get("context", "")
                 has_results = context_data.get("has_results", False)
+                images_length = len(context_data.get("images", []))
 
                 if not has_results:
                     # Sin resultados - crear respuesta por defecto
@@ -136,6 +137,7 @@ class ChatbotService:
                     llm_response = self.llm_chain_manager.generate_rag_response(
                         context=context,
                         question=question,
+                        images_length=images_length,
                         config={'max_context_length': 2000}
                     )
 
@@ -157,7 +159,7 @@ class ChatbotService:
                             "reason": "llm_error"
                         }
                         self.logger.warning(f"LLM falló, usando fallback: {llm_response.get('error', 'Unknown error')}")
-                self.logger.info(f"BEFORE CHAIN Images: {context_data.get('images', [])}")
+                self.logger.info(f"BEFORE CHAIN Images: {context_data.get('images', [])} (length: {images_length})")
                 # Preparar respuesta para output guardrail
                 return {
                     "success": has_results,
