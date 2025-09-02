@@ -1,6 +1,8 @@
 from src.database.core_faiss import FAISSVectorStore
 from src.guardrails.input.input_guardrail import input_guardrail_validation_chain
 from src.guardrails.output.output_guardrail import full_output_guardrail_chain
+from src.rerankers.reranker import reranker_runnable
+from src.rewritter.rewriter import rewriter_runnable
 from src.utils.embeddings.generator import EmbeddingsGenerator
 from src.llm.chain_manager import LLMChainManager
 import logging
@@ -182,7 +184,9 @@ class ChatbotService:
         # Crear chain completo
         complete_chain = (
             input_guardrail_validation_chain          # 1. Validar entrada
+            | rewriter_runnable
             | RunnableLambda(retrieve_context)        # 2. Buscar contexto
+            | reranker_runnable
             | RunnableLambda(generate_llm_response)   # 3. Generar respuesta LLM
             | full_output_guardrail_chain             # 4. Validar y mejorar salida
         )
