@@ -56,7 +56,7 @@ class ChatbotService:
                 # Buscar en vector store
                 distances, results = self.vector_store.search(
                     question_embedding,
-                    k=3,
+                    k=5,
                     return_metadata=True
                 )
 
