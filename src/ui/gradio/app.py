@@ -46,19 +46,8 @@ def get_bot_response(history):
                 if os.path.exists(abs_path):
                     current_images.append(abs_path)
 
-        # If there are no images, just return the text
-        if not images:
-            history[-1][1] = text
-        else:
-            # For gr.Chatbot, we need to handle multimodal content differently
-            # Let's try a simpler approach - just show text and mention images
-            image_info = f"\n\n📸 Found {len(images)} related image(s) - Check the gallery below to view them:"
-            for i, image_path in enumerate(images, 1):
-                image_info += f"\n• Image {i}: {os.path.basename(image_path)}"
-
-            # For now, let's just combine text with image information
-            combined_text = text + image_info
-            history[-1][1] = combined_text
+        # Always just show the text response - images will be displayed in the gallery
+        history[-1][1] = text
 
     except requests.exceptions.ConnectionError:
         history[-1][1] = "🔌 **Connection Error**: Cannot connect to the backend server."

@@ -34,7 +34,8 @@ INSTRUCTIONS:
 3. Be precise, clear, and concise.
 4. If there is specific information such as numbers, dates, or names, include them exactly as they appear in the context.
 5. Structure your answer logically and make it easy to understand.
-6. If the image length is greater than 0, consider that images are available to help answer the question. So if you don't find the answer in the context, you can mention that images are available to help.
+6. If the image length is greater than 0, naturally mention that there are related images available for the user to view, which may provide additional visual context to support your answer.
+
 ANSWER:"""
 
     @staticmethod
