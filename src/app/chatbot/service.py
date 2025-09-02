@@ -84,7 +84,9 @@ class ChatbotService:
                         "similarity": result.get('similarity', 0.0),
                         "chunk_id": result.get('id', 'N/A')
                     }
+                    self.logger.info(f"page number: {result.get('page_number', 'N/A')}")
                     sources.append(source_info)
+
 
                     # Extraer imágenes
                     if 'associated_images' in result and result['associated_images'] > 0:
@@ -97,7 +99,7 @@ class ChatbotService:
 
                 # Remover duplicados
                 related_images = list(dict.fromkeys(related_images))
-
+                self.logger.info("AFTER CHAIN IMAGES: " + str(related_images))
                 return {
                     "question": validated_question,
                     "context": context_text,
@@ -155,7 +157,7 @@ class ChatbotService:
                             "reason": "llm_error"
                         }
                         self.logger.warning(f"LLM falló, usando fallback: {llm_response.get('error', 'Unknown error')}")
-
+                self.logger.info(f"BEFORE CHAIN Images: {context_data.get('images', [])}")
                 # Preparar respuesta para output guardrail
                 return {
                     "success": has_results,
@@ -185,7 +187,7 @@ class ChatbotService:
         complete_chain = (
             input_guardrail_validation_chain          # 1. Validar entrada
             | rewriter_runnable
-            | RunnableLambda(retrieve_context)        # 2. Buscar contexto
+            |RunnableLambda(retrieve_context)        # 2. Buscar contexto
             | reranker_runnable
             | RunnableLambda(generate_llm_response)   # 3. Generar respuesta LLM
             | full_output_guardrail_chain             # 4. Validar y mejorar salida

@@ -8,7 +8,7 @@ def get_header_html():
     <div class="header-section">
         <h1 class="header-title">🤖 Intelligent Document Assistant</h1>
         <p class="header-subtitle">
-            Indra AI Chatbot Test
+a            Indra AI Chatbot Test
         </p>
         <p class="header-description">
             Ask questions about your documents and get intelligent responses with relevant context

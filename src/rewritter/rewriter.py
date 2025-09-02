@@ -6,14 +6,7 @@ import logging
 def rewrite_user_question(user_question: str) -> str:
     logger = logging.getLogger(__name__)
 
-    document_context = (f"The document discusses the challenges associated with "
-                        f"unstructured data in various types of documents. "
-                        f"Key points include:\n\n1. **Types of Documents Affected**: "
-                        f"The document highlights the issue of unstructured data in "
-                        f"millions of documents, such as:\n\t* Invoices\n\t* Contracts\n\t* Insurance claims\n\t* Medical records\n\t* Financial statements\n2. "
-                        f"**Untapped Data Insights**: It is estimated that 80-90% of the data in these documents remains untapped, containing valuable insights that could benefit businesses.\n3. **Manual Data Entry Challenges**: "
-                        f"The document mentions the problem of manual data entry from:\n\t* PDFs\n\t* Scanned images\n\t* Forms\n\nThis "
-                        f"highlights the need for efficient and automated solutions to extract and utilize the valuable information hidden within these documents.")
+
     try:
         groq_provider = GroqProvider(
             model="llama-3.1-8b-instant",
@@ -22,11 +15,9 @@ def rewrite_user_question(user_question: str) -> str:
         )
 
         rewrite_prompt = f"""
-You are a query rewriter. Rewrite this user question so it is complete,
-unambiguous, and relevant to the context of the document.
-
-PDF CONTEXT:
-{document_context}
+You are an expert at rewriting user questions for a retrieval system.
+Your task is to transform a potentially short or ambiguous user question into a detailed, standalone query that is optimized for finding information in a document.
+The rewritten query should be self-contained and not conversational.
 
 USER QUESTION:
 {user_question}
